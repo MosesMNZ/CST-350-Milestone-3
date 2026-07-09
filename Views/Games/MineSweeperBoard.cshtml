@@ -1,0 +1,290 @@
+@model List<CellModel>
+
+@{
+    ViewData["Title"] = "Minesweeper Board";
+    int boardSize = (int)(ViewBag.BoardSize ?? 8);
+    string difficulty = (string)(ViewBag.Difficulty ?? "Easy");
+    
+    // Calculate cell size based on board dimensions
+    // 8x8: 38px, 10x10: 30px, 12x12: 25px
+    string cellSize = boardSize == 8 ? "38px" : boardSize == 10 ? "30px" : "25px";
+    string gridCols = $"repeat({boardSize}, {cellSize})";
+    
+    // Set initial values for partial view
+    ViewBag.FlagCount = ViewBag.FlagCount ?? 0;
+    ViewBag.MineCount = ViewBag.MineCount ?? 0;
+    ViewBag.TimeElapsed = ViewBag.TimeElapsed ?? "0:00";
+}
+
+<div class="d-flex justify-content-center align-items-center min-vh-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px;">
+    <div class="card shadow-lg" style="width: 100%; max-width: 650px;">
+        <div class="card-body p-2" style="padding-top: 12px !important; padding-bottom: 12px !important;">
+            <!-- Header -->
+            <h1 class="text-center mb-0" style="color: #333; font-weight: bold; font-size: 1.6em;">Minesweeper</h1>
+            <p class="text-center text-muted mb-2" style="font-size: 0.85em;">
+                @boardSize × @boardSize Board · <strong>@difficulty</strong> Difficulty
+            </p>
+            
+            <!-- Game Stats Bar Container - Partial View for AJAX Updates -->
+            <div id="gameStatsContainer">
+                @await Html.PartialAsync("_GameStatsPartial")
+            </div>
+            
+            <!-- Game Board Container - Partial View for AJAX Updates -->
+            <div id="gameBoardContainer">
+                @await Html.PartialAsync("_GameBoardPartial", Model)
+            </div>
+            
+            <!-- Control Buttons -->
+            <div class="row g-1">
+                <div class="col-6">
+                    <button type="button" id="newGameBtn" class="btn btn-warning btn-sm w-100" style="font-weight: bold; font-size: 0.85em; padding: 0.35rem 0.5rem;">
+                        🔄 New Game
+                    </button>
+                </div>
+                <div class="col-6">
+                    <a href="@Url.Action("StartGame", "Games")" class="btn btn-outline-secondary btn-sm w-100" style="font-weight: bold; font-size: 0.85em; padding: 0.35rem 0.5rem;">
+                        ← Back
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .min-vh-100 {
+        min-height: 100vh;
+    }
+    
+    /* Hidden Cell (Unrevealed) */
+    .cell-hidden {
+        background-color: #c0c0c0;
+        border-color: #dfdfdf #808080 #808080 #dfdfdf;
+    }
+    
+    .cell-hidden:hover {
+        background-color: #d0d0d0;
+        border-color: #dfdfdf #707070 #707070 #dfdfdf;
+    }
+    
+    .cell-hidden:active {
+        border-color: #808080 #dfdfdf #dfdfdf #808080;
+        background-color: #a0a0a0;
+    }
+    
+    /* Revealed Cell (Empty or with number) */
+    .cell-revealed {
+        background-color: #c0c0c0;
+        border-color: #808080 #dfdfdf #dfdfdf #808080;
+        cursor: default;
+    }
+    
+    .cell-revealed:hover {
+        background-color: #c0c0c0;
+    }
+    
+    /* Number Cell Styling */
+    .cell-number {
+        background-color: #c0c0c0;
+        border-color: #808080 #dfdfdf #dfdfdf #808080;
+        font-weight: bold;
+    }
+    
+    /* Number colors (classic Minesweeper) */
+    .number-1 { color: #0000ff; }
+    .number-2 { color: #008000; }
+    .number-3 { color: #ff0000; }
+    .number-4 { color: #000080; }
+    .number-5 { color: #800000; }
+    .number-6 { color: #008080; }
+    .number-7 { color: #000000; }
+    .number-8 { color: #808080; }
+    
+    /* Flagged Cell */
+    .cell-flagged {
+        background-color: #c0c0c0;
+        border-color: #dfdfdf #808080 #808080 #dfdfdf;
+        color: #ff0000;
+        font-size: 18px;
+    }
+    
+    .cell-flagged:hover {
+        background-color: #d0d0d0;
+    }
+    
+    /* Mine Cell (Revealed) */
+    .cell-mine {
+        background-color: #ff6b6b;
+        border-color: #808080 #dfdfdf #dfdfdf #808080;
+        color: #000;
+        font-size: 16px;
+    }
+    
+    .cell-mine:hover {
+        background-color: #ff5252;
+    }
+    
+    /* Base cell button styles */
+    .cell-button {
+        transition: none;
+    }
+    
+    .cell-button:hover {
+        background-color: #e0e0e0;
+        border-color: #dfdfdf #606060 #606060 #dfdfdf;
+    }
+    
+    .cell-button:active {
+        border-color: #808080 #dfdfdf #dfdfdf #808080;
+        background-color: #a0a0a0;
+    }
+    
+    .cell-button:disabled {
+        cursor: not-allowed;
+        color: #333;
+    }
+    
+    .minesweeper-grid button {
+        transition: none;
+    }
+</style>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            // Initialize timer interval
+            let timerInterval;
+            startGameTimer();
+
+            // LEFT-CLICK HANDLER: Reveal cell
+            // Delegation pattern to handle dynamically loaded content (ButtonGrid activity pattern)
+            // Do not allow reveal if cell is flagged - must unflag first
+            $(document).on('click', '.cell-button', function (e) {
+                if (e.button === 0) { // Left click (0 = left, 1 = middle, 2 = right)
+                    e.preventDefault();
+                    let cellId = $(this).data('id');
+                    let isFlagged = $(this).data('flagged') === 'true' || $(this).data('flagged') === true;
+                    
+                    // If cell is flagged, ignore left-click (user must right-click to unflag)
+                    if (isFlagged) {
+                        console.log('Cell ' + cellId + ' is flagged. Right-click to remove flag.');
+                        return;
+                    }
+                    
+                    revealCell(cellId);
+                }
+            });
+
+            // RIGHT-CLICK HANDLER: Toggle flag on cell
+            // Using contextmenu event for right-click (Partial Views activity pattern)
+            $(document).on('contextmenu', '.cell-button', function (e) {
+                e.preventDefault();
+                let cellId = $(this).data('id');
+                toggleFlag(cellId);
+            });
+
+            // NEW GAME BUTTON
+            $('#newGameBtn').on('click', function () {
+                location.reload(); // TODO MILESTONE 3: Implement game reset via AJAX
+            });
+
+            /**
+             * Reveal Cell via AJAX
+             * Calls POST /Games/RevealCell endpoint with cellId
+             * Backend returns PartialView (_CellPartial) with updated cell HTML
+             * Updates only the clicked cell (not entire board)
+             * Follows CST-350 AJAX and Partial Views activity pattern
+             */
+            function revealCell(cellId) {
+                $.ajax({
+                    url: '@Url.Action("RevealCell", "Games")',
+                    type: 'POST',
+                    data: { cellId: cellId },
+                    success: function (cellHtml) {
+                        // Response is HTML from _CellPartial.cshtml
+                        // Replace only the clicked cell container
+                        $(`#cell-${cellId}`).html(cellHtml);
+                        
+                        // TODO MILESTONE 3: After game service implementation
+                        // - Add call to update stats (flagCount, mineCount, timeElapsed)
+                        // - Add check for game status (Win/Loss) and redirect if needed
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error revealing cell:', error);
+                        alert('Error revealing cell. Please try again.');
+                    }
+                });
+            }
+
+            /**
+             * Toggle Flag on Cell via AJAX
+             * Calls POST /Games/ToggleFlag endpoint with cellId
+             * Backend returns PartialView (_CellPartial) with flagged/unflagged cell
+             * Updates only the clicked cell (not entire board)
+             * Right-click shows flag image; right-click again removes flag
+             */
+            function toggleFlag(cellId) {
+                $.ajax({
+                    url: '@Url.Action("ToggleFlag", "Games")',
+                    type: 'POST',
+                    data: { cellId: cellId },
+                    success: function (cellHtml) {
+                        // Response is HTML from _CellPartial.cshtml
+                        // Replace only the clicked cell container
+                        $(`#cell-${cellId}`).html(cellHtml);
+                        
+                        // TODO MILESTONE 3: After game service implementation
+                        // - Update flag count from response header or new endpoint
+                        // - For now, call separate endpoint to refresh stats
+                        updateFlagCount();
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error toggling flag:', error);
+                        alert('Error toggling flag. Please try again.');
+                    }
+                });
+            }
+
+            /**
+             * Update Flag Count Display
+             * Counts all flagged cells (red buttons) and updates the stats bar
+             */
+            function updateFlagCount() {
+                // Count all cells with data-flagged="true"
+                let flagCount = $('[data-flagged="true"]').length;
+                $('#flagCount').text(flagCount);
+            }
+
+            /**
+             * Start Game Timer
+             * Calls GetTimestamp every second via AJAX to update elapsed time
+             * Demonstrates AJAX partial page updates - CST-350 activity
+             */
+            function startGameTimer() {
+                timerInterval = setInterval(function () {
+                    $.ajax({
+                        url: '@Url.Action("GetTimestamp", "Games")',
+                        type: 'GET',
+                        dataType: 'json',
+                        success: function (response) {
+                            // Backend returns timeElapsed formatted as M:SS or MM:SS
+                            if (response.success && response.timeElapsed) {
+                                $('#timeElapsed').text(response.timeElapsed);
+                            }
+                        },
+                        error: function (xhr, status, error) {
+                            // Log error but keep timer running
+                            console.error('Error fetching timestamp:', error);
+                        }
+                    });
+                }, 1000); // Call GetTimestamp every 1 second
+            }
+
+            // Cleanup: Clear timer on page unload
+            $(window).on('unload', function () {
+                clearInterval(timerInterval);
+            });
+        });
+    </script>
+}

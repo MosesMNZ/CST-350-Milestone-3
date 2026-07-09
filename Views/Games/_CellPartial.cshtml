@@ -1,0 +1,32 @@
+@model CellModel
+
+@{
+    // Get board dimensions and cell size from parent view
+    int boardSize = (int)(ViewBag.BoardSize ?? 8);
+    string cellSize = boardSize == 8 ? "38px" : boardSize == 10 ? "30px" : "25px";
+    
+    // Calculate row and column from cell Id
+    int row = Model.Id / boardSize;
+    int col = Model.Id % boardSize;
+    
+    // Check if cell is flagged (cellState=2)
+    bool isFlagged = Model.CellState == 2;
+}
+
+<!-- Minesweeper Cell Partial - Renders a single cell button -->
+<!-- Used for AJAX updates and initial board rendering -->
+<!-- Flagged cells (data-flagged="true") cannot be revealed by left-click -->
+<div style="display: flex; justify-content: center;">
+    <button type="button" 
+            class="cell-button" 
+            data-id="@Model.Id" 
+            data-row="@row"
+            data-col="@col"
+            data-cellstate="@Model.CellState"
+            data-flagged="@(isFlagged ? "true" : "false")"
+            style="width: @(cellSize); height: @(cellSize); padding: 0; border: none; background: none; cursor: pointer;">
+        <img src="~/img/@Model.CellImage" 
+             alt="Cell @Model.Id" 
+             style="width: @(cellSize); height: @(cellSize);" />
+    </button>
+</div>

@@ -1,0 +1,27 @@
+@{
+    int flagCount = ViewBag.FlagCount ?? 0;
+    int mineCount = ViewBag.MineCount ?? 0;
+    string timeElapsed = ViewBag.TimeElapsed ?? "0:00";
+}
+
+<!-- Game Stats Bar - Updated via AJAX -->
+<div class="row mb-2 g-1">
+    <div class="col-4">
+        <div class="text-center p-1" style="background-color: #f8f9fa; border-radius: 3px; border: 1px solid #dee2e6;">
+            <p class="text-muted mb-0" style="font-size: 0.65em; margin-bottom: -2px;">⚐ Flags</p>
+            <h6 class="mb-0" id="flagCount" style="color: #dc3545; font-size: 0.9em;">@flagCount</h6>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="text-center p-1" style="background-color: #f8f9fa; border-radius: 3px; border: 1px solid #dee2e6;">
+            <p class="text-muted mb-0" style="font-size: 0.65em; margin-bottom: -2px;">⏱️ Time</p>
+            <h6 class="mb-0" id="timeElapsed" style="color: #0d6efd; font-size: 0.9em;">@timeElapsed</h6>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="text-center p-1" style="background-color: #f8f9fa; border-radius: 3px; border: 1px solid #dee2e6;">
+            <p class="text-muted mb-0" style="font-size: 0.65em; margin-bottom: -2px;">💣 Mines</p>
+            <h6 class="mb-0" id="mineCount" style="color: #198754; font-size: 0.9em;">@mineCount</h6>
+        </div>
+    </div>
+</div>
