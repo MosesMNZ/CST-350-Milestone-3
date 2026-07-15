@@ -4,11 +4,17 @@
     int boardSize = (int)(ViewBag.BoardSize ?? 8);
     string cellSize = boardSize == 8 ? "38px" : boardSize == 10 ? "30px" : "25px";
     string gridCols = $"repeat({boardSize}, {cellSize})";
+
+    // MILESTONE 2/3: game status ("InProgress", "Win", "Loss") computed by the
+    // game service. Embedded as a data attribute so the AJAX success handler
+    // in MineSweeperBoard.cshtml can redirect to the Win/Loss page after a
+    // flood-reveal without needing a second round trip.
+    string gameStatus = (string)(ViewBag.GameStatus ?? "InProgress");
 }
 
 <!-- Game Board Grid - Following ButtonGrid Activity Pattern -->
 <!-- This partial is loaded via AJAX for dynamic updates -->
-<div class="d-flex justify-content-center mb-2">
+<div class="d-flex justify-content-center mb-2" data-game-status="@gameStatus">
     <div id="gameBoard" class="minesweeper-grid" style="display: grid; grid-template-columns: @(gridCols); gap: 3px; padding: 6px; background-color: #c0c0c0; border: 3px solid; border-color: #dfdfdf #808080 #808080 #dfdfdf; box-shadow: inset 1px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 0 rgba(0,0,0,0.5);">
         @{
             // Display cells using for loop (ButtonGrid pattern)
@@ -16,7 +22,7 @@
             for (int i = 0; i < Model.Count; i++)
             {
                 var cell = Model.ElementAt(i);
-                
+
                 <!-- Cell container with unique id for individual AJAX updates -->
                 <div id="cell-@cell.Id">
                     @await Html.PartialAsync("_CellPartial", cell)

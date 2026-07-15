@@ -1,0 +1,121 @@
+@{
+    bool isWin = (bool)(ViewBag.IsWin ?? false);
+    int elapsedSecs = (int)(ViewBag.ElapsedSeconds ?? 0);
+    int elapsedMins = elapsedSecs / 60;
+    int elapsedRemSecs = elapsedSecs % 60;
+    int flagsUsed = (int)(ViewBag.FlagsUsed ?? 0);
+    int flagPenalty = (int)(ViewBag.FlagPenalty ?? 10);
+}
+
+<!--
+    ACTIVITY 6 (Partial Views): the Win/Loss screen is loaded into the
+    #gameOverModal shell (in MineSweeperBoard.cshtml) via AJAX instead of
+    being a separate full page - the board underneath already shows the
+    final revealed/mine state, so this modal is purely the summary overlay.
+    The modal has no close (X) button and no backdrop/keyboard dismissal -
+    the only way out is one of the three buttons below.
+-->
+@if (isWin)
+{
+    <div class="modal-header bg-success text-white border-0">
+        <h5 class="modal-title mb-0 w-100 text-center">🎉 Congratulations!</h5>
+    </div>
+    <div class="modal-body text-center">
+        <p class="mb-3" style="color: #555;">You won the game! 🏆</p>
+
+        <div class="card mb-3" style="border: 2px solid #28a745; background-color: #f8f9fa;">
+            <div class="card-body py-2 px-3">
+                <h6 class="card-title mb-2" style="color: #333;">Game Statistics</h6>
+                <div class="d-flex justify-content-around">
+                    <div>
+                        <p class="text-muted mb-0" style="font-size: 0.75em;">Final Score</p>
+                        <h5 class="mb-0" style="color: #0d6efd; font-weight: bold;">@(ViewBag.Score ?? 0) pts</h5>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0" style="font-size: 0.75em;">Time</p>
+                        <h5 class="mb-0" style="color: #28a745; font-weight: bold;">@(elapsedMins):@(elapsedRemSecs.ToString("D2"))</h5>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0" style="font-size: 0.75em;">🚩 Flags Used</p>
+                        <h5 class="mb-0" style="color: #dc3545; font-weight: bold;">@flagsUsed <span style="font-size: 0.6em; font-weight: normal;">(-@(flagsUsed * flagPenalty) pts)</span></h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-2 mb-1">
+            <div class="col-6">
+                <div style="background-color: #f0f7ff; padding: 10px; border-radius: 4px; border-left: 4px solid #0d6efd;">
+                    <p class="text-muted small mb-1">Board Size</p>
+                    <h6 class="mb-0" style="color: #0d6efd; font-weight: bold;">@(ViewBag.BoardSize ?? 8) × @(ViewBag.BoardSize ?? 8)</h6>
+                </div>
+            </div>
+            <div class="col-6">
+                <div style="background-color: #f0fff4; padding: 10px; border-radius: 4px; border-left: 4px solid #28a745;">
+                    <p class="text-muted small mb-1">Difficulty</p>
+                    <h6 class="mb-0" style="color: #28a745; font-weight: bold;">@(ViewBag.Difficulty ?? "Easy")</h6>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="modal-header bg-danger text-white border-0">
+        <h5 class="modal-title mb-0 w-100 text-center">💣 Game Over</h5>
+    </div>
+    <div class="modal-body text-center">
+        <p class="mb-3" style="color: #555;">You hit a mine! 💥</p>
+
+        <div class="card mb-3" style="border: 2px solid #dc3545; background-color: #f8f9fa;">
+            <div class="card-body py-2 px-3">
+                <h6 class="card-title mb-2" style="color: #333;">Game Statistics</h6>
+                <div class="d-flex justify-content-around">
+                    <div>
+                        <p class="text-muted mb-0" style="font-size: 0.75em;">⏱️ Time Played</p>
+                        <h5 class="mb-0" style="color: #0d6efd; font-weight: bold;">@(elapsedMins):@(elapsedRemSecs.ToString("D2"))</h5>
+                    </div>
+                    <div>
+                        <p class="text-muted mb-0" style="font-size: 0.75em;">🔍 Cells Revealed</p>
+                        <h5 class="mb-0" style="color: #6c757d; font-weight: bold;">@(ViewBag.CellsRevealed ?? 0)</h5>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-2 mb-1">
+            <div class="col-6">
+                <div style="background-color: #f0f7ff; padding: 10px; border-radius: 4px; border-left: 4px solid #0d6efd;">
+                    <p class="text-muted small mb-1">Board Size</p>
+                    <h6 class="mb-0" style="color: #0d6efd; font-weight: bold;">@(ViewBag.BoardSize ?? 8) × @(ViewBag.BoardSize ?? 8)</h6>
+                </div>
+            </div>
+            <div class="col-6">
+                <div style="background-color: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107;">
+                    <p class="text-muted small mb-1">Difficulty</p>
+                    <h6 class="mb-0" style="color: #856404; font-weight: bold;">@(ViewBag.Difficulty ?? "Easy")</h6>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-muted small mb-0">Don't give up! Be more careful next time. 🎯</p>
+    </div>
+}
+
+<!--
+    Only these three buttons can close the modal - there is no X button and
+    the modal is created with backdrop:'static', keyboard:false, so clicking
+    outside it or pressing Escape does nothing. Each link is a normal full
+    navigation, which naturally leaves this page (and the modal with it).
+-->
+<div class="modal-footer justify-content-center flex-column gap-2">
+    <a href="@Url.Action("RestartGame", "Games")" class="btn @(isWin ? "btn-success" : "btn-danger") w-100" style="font-weight: bold;">
+        🎮 Try Again
+    </a>
+    <a href="@Url.Action("StartGame", "Games")" class="btn btn-outline-secondary w-100" style="font-weight: bold;">
+        🗂️ Change Board
+    </a>
+    <a href="@Url.Action("Index", "Home")" class="btn btn-outline-secondary w-100" style="font-weight: bold;">
+        🏠 Return Home
+    </a>
+</div>

@@ -3,30 +3,55 @@
 @{
     // Get board dimensions and cell size from parent view
     int boardSize = (int)(ViewBag.BoardSize ?? 8);
-    string cellSize = boardSize == 8 ? "38px" : boardSize == 10 ? "30px" : "25px";
-    
+    int cellPixels = boardSize == 8 ? 38 : boardSize == 10 ? 30 : 25;
+    string cellSize = cellPixels + "px";
+    int fontSize = cellPixels * 55 / 100;
+
     // Calculate row and column from cell Id
     int row = Model.Id / boardSize;
     int col = Model.Id % boardSize;
-    
-    // Check if cell is flagged (cellState=2)
+
+    // Cell state: 0=hidden, 1=revealed, 2=flagged, 3=mine (revealed on loss)
     bool isFlagged = Model.CellState == 2;
+    bool isRevealed = Model.CellState == 1;
+    bool isMine = Model.CellState == 3;
 }
 
-<!-- Minesweeper Cell Partial - Renders a single cell button -->
+<!-- Minesweeper Cell Partial - Renders a single cell -->
 <!-- Used for AJAX updates and initial board rendering -->
 <!-- Flagged cells (data-flagged="true") cannot be revealed by left-click -->
 <div style="display: flex; justify-content: center;">
-    <button type="button" 
-            class="cell-button" 
-            data-id="@Model.Id" 
-            data-row="@row"
-            data-col="@col"
-            data-cellstate="@Model.CellState"
-            data-flagged="@(isFlagged ? "true" : "false")"
-            style="width: @(cellSize); height: @(cellSize); padding: 0; border: none; background: none; cursor: pointer;">
-        <img src="~/img/@Model.CellImage" 
-             alt="Cell @Model.Id" 
+    @if (isRevealed && Model.AdjacentMines > 0)
+    {
+        <!-- Revealed cell showing adjacent mine count -->
+        <div class="number-@Model.AdjacentMines"
+             data-id="@Model.Id" data-row="@row" data-col="@col" data-cellstate="@Model.CellState" data-flagged="false"
+             style="width: @(cellSize); height: @(cellSize); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: @(fontSize)px; background: #c0c0c0; border: 2px solid; border-color: #808080 #dfdfdf #dfdfdf #808080; box-sizing: border-box;">
+            @Model.AdjacentMines
+        </div>
+    }
+    else if (isRevealed || isMine)
+    {
+        <!-- Revealed empty cell (green) or revealed mine (red) - not clickable -->
+        <img src="~/img/@Model.CellImage"
+             alt="Cell @Model.Id"
+             data-id="@Model.Id" data-row="@row" data-col="@col" data-cellstate="@Model.CellState" data-flagged="false"
              style="width: @(cellSize); height: @(cellSize);" />
-    </button>
+    }
+    else
+    {
+        <!-- Hidden or flagged cell - clickable button -->
+        <button type="button"
+                class="cell-button"
+                data-id="@Model.Id"
+                data-row="@row"
+                data-col="@col"
+                data-cellstate="@Model.CellState"
+                data-flagged="@(isFlagged ? "true" : "false")"
+                style="width: @(cellSize); height: @(cellSize); padding: 0; border: none; background: none; cursor: pointer;">
+            <img src="~/img/@Model.CellImage"
+                 alt="Cell @Model.Id"
+                 style="width: @(cellSize); height: @(cellSize);" />
+        </button>
+    }
 </div>

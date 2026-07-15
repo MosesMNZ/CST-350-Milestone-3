@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CST_350_Milestone.Models
 {
-    public class RegisterModel
+    public class ProfileModel
     {
         [Required(ErrorMessage = "First name is required.")]
         [StringLength(50, ErrorMessage = "First name cannot exceed 50 characters.")]
@@ -31,10 +31,5 @@ namespace CST_350_Milestone.Models
         [Required(ErrorMessage = "Username is required.")]
         [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters.")]
         public string Username { get; set; }
-
-        [Required(ErrorMessage = "Password is required.")]
-        [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters long.")]
-        [DataType(DataType.Password)]
-        public string Password { get; set; }
     }
 }

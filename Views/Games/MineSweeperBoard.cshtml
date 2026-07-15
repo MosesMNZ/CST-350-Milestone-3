@@ -16,7 +16,7 @@
     ViewBag.TimeElapsed = ViewBag.TimeElapsed ?? "0:00";
 }
 
-<div class="d-flex justify-content-center align-items-center min-vh-100" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px;">
+<div class="d-flex justify-content-center align-items-center" style="height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 8px;">
     <div class="card shadow-lg" style="width: 100%; max-width: 650px;">
         <div class="card-body p-2" style="padding-top: 12px !important; padding-bottom: 12px !important;">
             <!-- Header -->
@@ -24,17 +24,17 @@
             <p class="text-center text-muted mb-2" style="font-size: 0.85em;">
                 @boardSize × @boardSize Board · <strong>@difficulty</strong> Difficulty
             </p>
-            
+
             <!-- Game Stats Bar Container - Partial View for AJAX Updates -->
             <div id="gameStatsContainer">
                 @await Html.PartialAsync("_GameStatsPartial")
             </div>
-            
+
             <!-- Game Board Container - Partial View for AJAX Updates -->
             <div id="gameBoardContainer">
                 @await Html.PartialAsync("_GameBoardPartial", Model)
             </div>
-            
+
             <!-- Control Buttons -->
             <div class="row g-1">
                 <div class="col-6">
@@ -52,11 +52,21 @@
     </div>
 </div>
 
+<!--
+    ACTIVITY 6 (Partial Views): empty modal shell for the Win/Loss summary.
+    modalHandler-style AJAX fills #gameOverModal .modal-content with the
+    _GameOverModal partial. backdrop:'static' and keyboard:false (set both
+    here and in JS) mean the only way to close it is one of its own buttons.
+-->
+<div class="modal fade" id="gameOverModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <!-- populated dynamically via AJAX -->
+        </div>
+    </div>
+</div>
+
 <style>
-    .min-vh-100 {
-        min-height: 100vh;
-    }
-    
     /* Hidden Cell (Unrevealed) */
     .cell-hidden {
         background-color: #c0c0c0;
@@ -157,6 +167,16 @@
             let timerInterval;
             startGameTimer();
 
+            // If the game was already won/lost before this page loaded (e.g.
+            // the player refreshed the board after finishing), show the
+            // game-over modal immediately instead of waiting for a click.
+            @if ((bool)(ViewBag.GameOver ?? false))
+            {
+                <text>
+                showGameOverModal();
+                </text>
+            }
+
             // LEFT-CLICK HANDLER: Reveal cell
             // Delegation pattern to handle dynamically loaded content (ButtonGrid activity pattern)
             // Do not allow reveal if cell is flagged - must unflag first
@@ -186,33 +206,69 @@
 
             // NEW GAME BUTTON
             $('#newGameBtn').on('click', function () {
-                location.reload(); // TODO MILESTONE 3: Implement game reset via AJAX
+                window.location = '@Url.Action("RestartGame", "Games")';
             });
 
             /**
              * Reveal Cell via AJAX
              * Calls POST /Games/RevealCell endpoint with cellId
-             * Backend returns PartialView (_CellPartial) with updated cell HTML
-             * Updates only the clicked cell (not entire board)
-             * Follows CST-350 AJAX and Partial Views activity pattern
+             * Backend runs the real game logic (mine placement, flood-reveal,
+             * win/loss check) in MinesweeperGameService and returns the
+             * updated _GameBoardPartial - a single click can cascade-reveal
+             * several neighboring cells, so the whole board partial (not just
+             * one cell) is refreshed. Still an AJAX partial-page update -
+             * only the #gameBoardContainer div is replaced, not the full page.
              */
             function revealCell(cellId) {
                 $.ajax({
                     url: '@Url.Action("RevealCell", "Games")',
                     type: 'POST',
                     data: { cellId: cellId },
-                    success: function (cellHtml) {
-                        // Response is HTML from _CellPartial.cshtml
-                        // Replace only the clicked cell container
-                        $(`#cell-${cellId}`).html(cellHtml);
-                        
-                        // TODO MILESTONE 3: After game service implementation
-                        // - Add call to update stats (flagCount, mineCount, timeElapsed)
-                        // - Add check for game status (Win/Loss) and redirect if needed
+                    success: function (boardHtml) {
+                        // Response is HTML from _GameBoardPartial.cshtml
+                        $('#gameBoardContainer').html(boardHtml);
+
+                        // Game status is embedded as a data attribute by the
+                        // partial view. The board underneath already shows
+                        // the final revealed/mine state, so once the service
+                        // reports the game has ended we just pop the
+                        // game-over modal on top of it - no navigation.
+                        let status = $('#gameBoardContainer [data-game-status]').data('game-status');
+                        if (status === 'Win' || status === 'Loss') {
+                            showGameOverModal();
+                        }
                     },
                     error: function (xhr, status, error) {
                         console.error('Error revealing cell:', error);
                         alert('Error revealing cell. Please try again.');
+                    }
+                });
+            }
+
+            /**
+             * Show the Win/Loss summary in a modal
+             * Calls GET /Games/GetGameOverModal via AJAX and injects the
+             * response into #gameOverModal. The modal is created with
+             * backdrop:'static' and keyboard:false so it can only be
+             * dismissed via its own Try Again / Change Board / Return Home
+             * buttons (each a normal link navigation).
+             */
+            function showGameOverModal() {
+                clearInterval(timerInterval);
+
+                $.ajax({
+                    url: '@Url.Action("GetGameOverModal", "Games")',
+                    type: 'GET',
+                    success: function (result) {
+                        $('#gameOverModal .modal-content').html(result);
+                        var modal = new bootstrap.Modal(document.getElementById('gameOverModal'), {
+                            backdrop: 'static',
+                            keyboard: false
+                        });
+                        modal.show();
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Error loading game over screen:', error);
                     }
                 });
             }
@@ -233,10 +289,8 @@
                         // Response is HTML from _CellPartial.cshtml
                         // Replace only the clicked cell container
                         $(`#cell-${cellId}`).html(cellHtml);
-                        
-                        // TODO MILESTONE 3: After game service implementation
-                        // - Update flag count from response header or new endpoint
-                        // - For now, call separate endpoint to refresh stats
+
+                        // Recount flagged cells in the DOM and refresh the stats bar
                         updateFlagCount();
                     },
                     error: function (xhr, status, error) {

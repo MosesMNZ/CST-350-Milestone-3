@@ -1,4 +1,5 @@
 using CST_350_Milestone.Services;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace CST_350_Milestone
 {
@@ -18,9 +19,14 @@ namespace CST_350_Milestone
                 options.Cookie.IsEssential = true;
             });
 
-            // TODO MILESTONE 3: Register game service for dependency injection
-            // The GamesController will receive IMinesweeperGameService via constructor injection
-            // For now, register placeholder service - replace with actual implementation when ready
+            // MILESTONE 2: persist data-protection keys to disk so sessions
+            // (and the encrypted session cookie) survive an app restart.
+            builder.Services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "DataProtection-Keys")))
+                .SetApplicationName("CST-350-Milestone");
+
+            // MILESTONE 3: Register game service for dependency injection
+            // The GamesController receives IMinesweeperGameService via constructor injection
             builder.Services.AddScoped<IMinesweeperGameService, MinesweeperGameService>();
 
             var app = builder.Build();
